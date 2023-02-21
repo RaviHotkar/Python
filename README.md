@@ -1,0 +1,2 @@
+# Python
+Detect_image_And_Send_To_2_mobiles
