@@ -1,0 +1,121 @@
+import json
+import boto3
+import urllib.parse
+
+#from botocore.vendored import requests
+import urllib3
+
+#model='arn:aws:rekognition:ap-south-1:453183322705:project/Tomato_V1/version/Tomato_V1.2022-11-02T12.45.46/1667373573682'
+model='arn:aws:rekognition:ap-south-1:046285459324:project/Fala_Image_processing_V2_1/version/Fala_Image_processing_V2_1.2022-12-07T18.34.28/1670418521125'
+bucket = 'fala-app-images'
+photo  = "Test_Images/17_2_14.jpg"
+
+serverToken = 'AAAAsVRLRns:APA91bGv2pn57bNAcSLf6-9ntfiZXXCVC_x-BugGRl00Lb47YJYZCAq1SOjC_ZAoSX8y2RyMylc9xlgf1jsUkqTUf3CTpV59i2RSMp0rg9Ql25DtU5cRWxweFKwkYpswQE_qRHaqSMW7'
+deviceToken1 = 'fnkrrLlHQ1C2t2iXUjtKPz:APA91bE8IV14DZC6MFcLOkzvt-ExdRzwhpakjQuDGpOCMgfCJ5W47HeKxj6_tyiaEoappca9OQ-Yu-O7_j2lARjz6gqD3fISjiixZ9DMLhtTLiNSebPDSzBOsZAKfgMnNvrPDhqPGAST'
+deviceToken2 = 'cTBdK-BQSGKemQi5sK5_rn:APA91bHfXMeOlp2F96CBP5PSvq3Ttm6R5xQFVjPCRO_avBbxybAiGb63j1S7V7j_jrO_NlXv9URYFALXYVAewk3sR4N9t85z93uqoPQXx_6hN9gUAsrYTydNZvkKyywMoEVlDxPy4aK8'
+## Read and replace deviceToken from token.txt file
+
+def lambda_handler(event, context):
+    response = "**********************************************Hello FaLa****************************************** "
+    print(response)
+    
+
+    
+    client = boto3.client("rekognition")
+    
+   # print("---------------------------------> Starting the model <--------------------------------------")
+   # response=client.start_project_version(ProjectVersionArn=model, MinInferenceUnits=1)
+    print(response)
+    
+    bucket_name = event['Records'][0]['s3']['bucket']['name']
+   
+    print("bucket_name")
+    print(bucket_name)
+   
+    key = event['Records'][0]['s3']['object']['key']
+    key = urllib.parse.unquote_plus(key,encoding='utf-8')
+   
+    print("------------- > File to be analyzed = ")
+    print(key)
+   
+    #print("event")
+    #print(event)
+    #print("context")
+    #print(context)
+    #s3 = boto3.client("s3")
+    #response = client.detect_labels(Image={"S3Object": {"Bucket": "custom-labels-console-ap-south-1-034b3ae05d", "Name": "Test_images/11 (1).JPG"}},MaxLabels=3,MinConfidence=80)
+    #response = client.detect_labels(Image={'S3Object':{"Bucket":"custom-labels-console-ap-south-1-034b3ae05d","Name":"Test_images/11 (1).JPG"}},"MaxLabels":10,"MinConfidence":75)
+   
+    photo = key
+   
+    #response = client.detect_labels(Image={'S3Object':{'Bucket':bucket,'Name':photo}},MaxLabels=3,MinConfidence=90)
+    response = client.detect_custom_labels(Image={'S3Object': {'Bucket': bucket, 'Name': photo}},MinConfidence=30,ProjectVersionArn=model)
+    print(response)
+   
+
+   # print("---------------------------------> Stopping the model <--------------------------------------")
+    #response=client.stop_project_version(ProjectVersionArn=model)
+    print(response)
+    
+    response_string =response['CustomLabels']
+    print('response_string ==============')
+    print(response_string)
+    
+    #-----Akshay code begin----
+
+    encoded_body = json.dumps({
+        'notification': {'title': 'Message From FaLa App',    
+                         'body':  json.dumps(response_string)   #response
+                            },
+          'to':
+              deviceToken1,
+          'priority': 'high',
+        #   'data': dataPayLoad,
+    })
+
+    http = urllib3.PoolManager()
+
+    response_post_gfb = http.request('POST', 'https://fcm.googleapis.com/fcm/send',
+                 headers={'Content-Type': 'application/json', 'Authorization': 'key=' + serverToken,},
+                 body=encoded_body)
+                 
+                 
+    encoded_body1 = json.dumps({
+        'notification': {'title': 'Hello',    
+                         'body':  json.dumps(response_string)   #response
+                            },
+          'to':
+              deviceToken2,
+          'priority': 'high',
+        #   'data': dataPayLoad,
+    })
+
+    http = urllib3.PoolManager()
+
+    response_post_gfb = http.request('POST', 'https://fcm.googleapis.com/fcm/send',
+                 headers={'Content-Type': 'application/json', 'Authorization': 'key=' + serverToken,},
+                 body=encoded_body1)
+    
+    
+
+
+
+    
+    #response_post_gfb = requests.post("https://fcm.googleapis.com/fcm/send",headers = headers, data=json.dumps(body))
+    print(response_post_gfb.status_code)
+    print(response_post_gfb.json())
+    
+    #-----Akshay code end----
+    
+    
+    
+
+
+    response = "**********************************************END of test****************************************** "
+    print(response)
+    # TODO implement
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Hello from Lambda!')
+    }
+
